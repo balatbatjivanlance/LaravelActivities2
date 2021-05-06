@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Post;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class PostController extends Controller
 {
@@ -15,8 +17,13 @@ class PostController extends Controller
     public function index()
     {
         //
-        $post = Post::get();
-        return view('posts.index', compact('post'));
+        $user = User::find(Auth::id());
+        //$posts = $user->posts; 
+       // dd($user);
+       $post = $user->posts()->where('title','!=','')->get();
+       $count = $user->posts()->where('title','!=','')->count();
+       return view('posts.index', compact('post', 'count')); 
+        
     }
 
     /**
@@ -63,7 +70,7 @@ class PostController extends Controller
         $post = new Post();
         $post->fill($request->all());
         $post->img = $filenameToStore;
-
+        $post->user_id = auth()->user()->id;
 
         if ($post->save()){
             return redirect('/posts')->with('status','Sucessfully save');
@@ -81,8 +88,10 @@ class PostController extends Controller
     public function show(Post $post)
     {
         //
-        $post = Post::find($post);
-        return view('posts.show', compact('post'));
+        $post = Post::find($post->id);
+        
+        $comments = $post->comments;
+        return view('posts.show', compact('post','comments'));
     }
 
     /**
@@ -131,7 +140,7 @@ class PostController extends Controller
             $filenameToStore = '';
         }
      
-        $post = Post::find($id);
+        $post = Post::find($post)->first();
         $post->fill($request->all());
         $post->img = $filenameToStore;
         $post->save();
@@ -148,9 +157,22 @@ class PostController extends Controller
     public function destroy(Post $post)
     {
         //
-        $post = Post::find($post)->first;
         $post->delete();
 
+        return redirect('/posts');
+    }
+
+    public function archive()
+    {
+        $post = Post::onlyTrashed()->get();
+
+        return view('posts.archive',compact('post'));
+    }
+
+    public function restore($id)
+    {
+        $post = Post::withTrashed()->find($id)->restore();
+        
         return redirect('/posts');
     }
 }
